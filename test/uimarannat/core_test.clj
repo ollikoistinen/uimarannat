@@ -13,7 +13,7 @@
 (def sompasauna-key :ffffsompasauna)
 (def sompasauna-response
   (cheshire.core/parse-string
-    (str "\"body\":{
+    (str "{\"body\":{
  \"meta\": {
   \"name\": \"Sompasauna\",
   \"location\": \"Hermanninranta\",
@@ -37,7 +37,7 @@
   {
    \"time\": \""(generate-timestamp-now-minus-hours 1) "\",
    \"temp_air\": 22.14,
-   \"temp_water\": 19.5
+   \"temp_water\": 30.5
   },
   {
    \"time\": \""(generate-timestamp-now-minus-hours 2)"\",
@@ -53,12 +53,12 @@
    \"time\": \""(generate-timestamp-now-minus-hours 4)"\",
    \"temp_air\": 17.48,
    \"temp_water\": 18.87
-  }]}") true))
+  }]}}") true))
 
 (def kuusijarvi-key :ffffkuusijarvi)
 (def kuusijarvi-response
   (cheshire.core/parse-string
-    (str "\"body\":{
+    (str "{\"body\":{
  \"meta\": {
   \"name\": \"Kuusij\u00e4rvi\",
   \"location\": \"Uimaranta\",
@@ -99,7 +99,7 @@
    \"time\": \""(generate-timestamp-now-minus-hours 4)"\",
    \"temp_air\": 17.48,
    \"temp_water\": 18.87
-  }]}") true))
+  }]}}") true))
 
 (def index-response {sompasauna-key {}
                      kuusijarvi-key {}})
@@ -122,7 +122,19 @@
      index-response
      (throw (Exception. "Unknown url requested")))))
 
+(defn mock-println [s]
+  )
 
-(comment (deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1)))))
+(deftest datetime-is-within-last-hours-success
+  (let [datetime (java.time.ZonedDateTime/now)]
+    (is (datetime-is-within-last-hours? datetime 3))))
+
+(deftest datetime-is-within-last-hours-fail
+  (let [datetime (-> (java.time.ZonedDateTime/now)
+                     (.minusHours 4))]
+    (is (false? (datetime-is-within-last-hours? datetime 3)))))
+
+(deftest get-latest-measurement-returns-correct-measurement
+  (let [data (get-in sompasauna-response [:body :data])
+        latest (get-latest-measurement data)]
+    (is (= (:temp_water latest) 30.5))))
