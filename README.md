@@ -1,10 +1,14 @@
 # uimarannat
 
-A Clojure library designed to ... well, that part is up to you.
+A program to fetch open data from Helsinki swimming locations. Prints out the spot with the warmest water where the measurement has been done in the last three hours.
 
 ## Usage
 
-FIXME
+Run program:
+> lein run
+
+Run tests:
+> lein test
 
 ## License
 
