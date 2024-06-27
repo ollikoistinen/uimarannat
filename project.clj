@@ -6,4 +6,5 @@
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [clj-http "3.13.0"]
                  [cheshire "5.13.0"]]
-  :repl-options {:init-ns uimarannat.core})
+  :repl-options {:init-ns uimarannat.core}
+  :main uimarannat.core)
