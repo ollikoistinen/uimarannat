@@ -10,15 +10,10 @@
       .toOffsetDateTime
       .toString))
 
-(def index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json")
-(defn spot-url [spot-key]
-  (let [base-url "https://iot.fvh.fi/opendata/uiras/"]
-    (str base-url (name key) "_v1.json")))
-
 (def sompasauna-key :ffffsompasauna)
 (def sompasauna-response
   (cheshire.core/parse-string
-    (str "{
+    (str "\"body\":{
  \"meta\": {
   \"name\": \"Sompasauna\",
   \"location\": \"Hermanninranta\",
@@ -63,7 +58,7 @@
 (def kuusijarvi-key :ffffkuusijarvi)
 (def kuusijarvi-response
   (cheshire.core/parse-string
-    (str "{
+    (str "\"body\":{
  \"meta\": {
   \"name\": \"Kuusij\u00e4rvi\",
   \"location\": \"Uimaranta\",
@@ -108,6 +103,24 @@
 
 (def index-response {sompasauna-key {}
                      kuusijarvi-key {}})
+
+(def index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json")
+(defn spot-url [spot-key]
+  (let [base-url "https://iot.fvh.fi/opendata/uiras/"]
+    (str base-url (name key) "_v1.json")))
+
+(defn mock-get
+  ([url req respond raise]
+   (let [sompasauna-url (spot-url sompasauna-key)
+         kuusijarvi-url (spot-url kuusijarvi-key)]
+     (case url
+       sompasauna-url (respond sompasauna-response)
+       kuusijarvi-url (respond kuusijarvi-response)
+       (throw (Exception. "Unknown url requested")))))
+  ([url req]
+   (if (= url index-url)
+     index-response
+     (throw (Exception. "Unknown url requested")))))
 
 
 (comment (deftest a-test
