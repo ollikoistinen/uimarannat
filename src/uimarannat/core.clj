@@ -86,28 +86,3 @@
 (defn -main [& args]
   (let [spot-keys (get-swimming-spot-keys)]
     (fetch-swimming-spots-details! spot-keys)))
-
-(comment
-  (-main)
-  (get-swimming-spot-keys)
-  (get-swimming-spot-keys)
-  (def other :70B3D5705001140F)
-  (def sompasauna :70B3D5705000E418)
-  (fetch-swimming-spot-details! other)
-  (fetch-swimming-spot-details! sompasauna)
-
-  (clojure.pprint/pprint @warmest-swimming-spot)
-
-  (get-latest-measurement (:data @warmest-swimming-spot))
-  (reset! warmest-swimming-spot nil)
-  (reset! ongoing-request-count 0)
-
-  (-> "2024-06-17T10:40:27.227000+03:00"
-      parse-datetime
-      (datetime-is-within-last-hours? 3))
-
-  (-> "2024-06-26T18:34:13.501000+03:00"
-      parse-datetime
-      (datetime-is-within-last-hours? 3))
-
-  (.toEpochSecond (parse-datetime "2024-06-17T10:40:27.227000+03:00")))
