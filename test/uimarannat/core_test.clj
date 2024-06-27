@@ -4,7 +4,6 @@
             [cheshire.core]
             [clj-http.client :as http-client]))
 
-
 (defn generate-timestamp-now-minus-hours [n]
   (-> (java.time.ZonedDateTime/now)
       (.minusHours n)

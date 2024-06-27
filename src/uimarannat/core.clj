@@ -77,7 +77,7 @@
                                        (print-if-done)))
                        (fn [exception] (do
                                         (swap! ongoing-request-count dec)
-                                        (println (str "An error occured while requesting " url ": "  (.getMessage exception)))))))))
+                                        (println (str "An error occured while requesting " url ": " (.getMessage exception)))))))))
 
 (defn fetch-swimming-spots-details! [spot-keys]
   (http-client/with-connection-pool {:timeout 10 :threads 4 :insecure? false :default-per-route 10}
