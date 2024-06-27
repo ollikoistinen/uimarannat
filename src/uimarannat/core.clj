@@ -9,12 +9,12 @@
 
 
 (defn get-index-body []
-  (let [swimming-spot-index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json"
-        index                   (http-client/get swimming-spot-index-url {:as :json})]
-    (:body index)))
+  (let [swimming-spot-index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json"]
+    (when-let [index                   (http-client/get swimming-spot-index-url {:as :json})]
+      (:body index))))
 
 (defn get-swimming-spot-keys []
-  (let [index-body (get-index-body)]
+  (when-let [index-body (get-index-body)]
     (keys index-body)))
 
 (defn parse-datetime [datetime-string]
