@@ -7,10 +7,9 @@
 
 (def measurement-expiration-hours 3)
 
-
 (defn get-index-body []
   (let [swimming-spot-index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json"]
-    (when-let [index                   (http-client/get swimming-spot-index-url {:as :json})]
+    (when-let [index (http-client/get swimming-spot-index-url {:as :json})]
       (:body index))))
 
 (defn get-swimming-spot-keys []

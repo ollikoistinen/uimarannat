@@ -1,7 +1,8 @@
 (ns uimarannat.core-test
   (:require [clojure.test :refer :all]
             [uimarannat.core :refer :all]
-            [cheshire.core]))
+            [cheshire.core]
+            [clj-http.client :as http-client]))
 
 
 (defn generate-timestamp-now-minus-hours [n]
@@ -35,22 +36,22 @@
  },
  \"data\": [
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 1) "\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 1) "\",
    \"temp_air\": 22.14,
    \"temp_water\": 30.5
   },
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 2)"\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 2)"\",
    \"temp_air\": 19.5,
    \"temp_water\": 18.93
   },
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 3)"\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 3)"\",
    \"temp_air\": 18.45,
-   \"temp_water\": 18.68
+   \"temp_water\": 78.68
   },
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 4)"\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 4)"\",
    \"temp_air\": 17.48,
    \"temp_water\": 18.87
   }]}}") true))
@@ -81,49 +82,44 @@
  },
  \"data\": [
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 1) "\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 1) "\",
    \"temp_air\": 22.14,
    \"temp_water\": 19.5
   },
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 2)"\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 2)"\",
    \"temp_air\": 19.5,
    \"temp_water\": 18.93
   },
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 3)"\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 3)"\",
    \"temp_air\": 18.45,
    \"temp_water\": 18.68
   },
   {
-   \"time\": \""(generate-timestamp-now-minus-hours 4)"\",
+   \"time\": \"" (generate-timestamp-now-minus-hours 4)"\",
    \"temp_air\": 17.48,
-   \"temp_water\": 18.87
+   \"temp_water\": 98.87
   }]}}") true))
 
-(def index-response {sompasauna-key {}
-                     kuusijarvi-key {}})
+(def index-response {:body {sompasauna-key {}
+                            kuusijarvi-key {}}})
 
 (def index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json")
 (defn spot-url [spot-key]
   (let [base-url "https://iot.fvh.fi/opendata/uiras/"]
-    (str base-url (name key) "_v1.json")))
+    (str base-url (name spot-key) "_v1.json")))
 
 (defn mock-get
   ([url req respond raise]
-   (let [sompasauna-url (spot-url sompasauna-key)
-         kuusijarvi-url (spot-url kuusijarvi-key)]
-     (case url
-       sompasauna-url (respond sompasauna-response)
-       kuusijarvi-url (respond kuusijarvi-response)
-       (throw (Exception. "Unknown url requested")))))
+   (cond
+     (= url (spot-url sompasauna-key)) (respond sompasauna-response)
+     (= url (spot-url kuusijarvi-key)) (respond kuusijarvi-response)
+     :else (throw (Exception. "Unknown url requested"))))
   ([url req]
    (if (= url index-url)
      index-response
      (throw (Exception. "Unknown url requested")))))
-
-(defn mock-println [s]
-  )
 
 (deftest datetime-is-within-last-hours-success
   (let [datetime (java.time.ZonedDateTime/now)]
@@ -138,3 +134,15 @@
   (let [data (get-in sompasauna-response [:body :data])
         latest (get-latest-measurement data)]
     (is (= (:temp_water latest) 30.5))))
+
+(deftest fetch-swimming-spots-details-saves-correct-result
+  (with-redefs [http-client/get mock-get
+                println (fn [s])]
+    (let [swimming-spot-keys (get-swimming-spot-keys)]
+      (do
+        (reset! warmest-swimming-spot nil)
+        (reset! ongoing-request-count 0)
+        (fetch-swimming-spots-details! swimming-spot-keys)
+        (is (= @ongoing-request-count 0))
+        (let [best-measurement (get-latest-measurement (:data @warmest-swimming-spot))]
+          (is (= 30.5 (:temp_water best-measurement))))))))
