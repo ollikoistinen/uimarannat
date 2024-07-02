@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [uimarannat.core :refer :all]
             [cheshire.core]
-            [clj-http.client :as http-client]))
+            [org.httpkit.client :as http]))
 
 (defn generate-timestamp-now-minus-hours [n]
   (-> (java.time.ZonedDateTime/now)
@@ -12,8 +12,9 @@
 
 (def sompasauna-key :ffffsompasauna)
 (def sompasauna-response
-  (cheshire.core/parse-string
-    (str "{\"body\":{
+  (let [p (promise)]
+    (deliver p {:status 200
+                :body (str "{
  \"meta\": {
   \"name\": \"Sompasauna\",
   \"location\": \"Hermanninranta\",
@@ -53,12 +54,13 @@
    \"time\": \"" (generate-timestamp-now-minus-hours 4)"\",
    \"temp_air\": 17.48,
    \"temp_water\": 18.87
-  }]}}") true))
+  }]}}")})))
 
 (def kuusijarvi-key :ffffkuusijarvi)
 (def kuusijarvi-response
-  (cheshire.core/parse-string
-    (str "{\"body\":{
+  (let [p (promise)]
+    (deliver p {:status 200
+                :body (str "{
  \"meta\": {
   \"name\": \"Kuusij\u00e4rvi\",
   \"location\": \"Uimaranta\",
@@ -99,26 +101,25 @@
    \"time\": \"" (generate-timestamp-now-minus-hours 4)"\",
    \"temp_air\": 17.48,
    \"temp_water\": 98.87
-  }]}}") true))
+  }]}}")})))
 
-(def index-response {:body {sompasauna-key {}
-                            kuusijarvi-key {}}})
+(def index-response
+  (let [p (promise)]
+    (deliver p {:status 200
+                :body (str "{\"" (name sompasauna-key) "\": {}, \"" (name kuusijarvi-key) "\": {}}")})))
 
 (def index-url "https://iot.fvh.fi/opendata/uiras/uiras-meta.json")
-(defn spot-url [spot-key]
-  (let [base-url "https://iot.fvh.fi/opendata/uiras/"]
-    (str base-url (name spot-key) "_v1.json")))
 
 (defn mock-get
-  ([url req respond raise]
-   (cond
-     (= url (spot-url sompasauna-key)) (respond sompasauna-response)
-     (= url (spot-url kuusijarvi-key)) (respond kuusijarvi-response)
-     :else (throw (Exception. "Unknown url requested"))))
-  ([url req]
-   (if (= url index-url)
-     index-response
-     (throw (Exception. "Unknown url requested")))))
+  [url]
+  (let [spot-url (fn [spot-key]
+                   (let [base-url "https://iot.fvh.fi/opendata/uiras/"]
+                     (str base-url (name spot-key) "_v1.json")))]
+    (cond
+      (= url (spot-url sompasauna-key)) sompasauna-response
+      (= url (spot-url kuusijarvi-key)) kuusijarvi-response
+      (= url index-url)                 index-response
+      :else                             (throw (Exception. "Unknown url requested")))))
 
 (deftest datetime-is-within-last-hours-success
   (let [datetime (java.time.ZonedDateTime/now)]
@@ -130,18 +131,20 @@
     (is (false? (datetime-is-within-last-hours? datetime 3)))))
 
 (deftest get-latest-measurement-returns-correct-measurement
-  (let [data (get-in sompasauna-response [:body :data])
+  (let [data   (-> sompasauna-response
+                   deref
+                   :body
+                   (cheshire.core/parse-string true)
+                   :data)
         latest (get-latest-measurement data)]
     (is (= (:temp_water latest) 30.5))))
 
-(deftest fetch-swimming-spots-details-saves-correct-result
-  (with-redefs [http-client/get mock-get
-                println (fn [s])]
-    (let [swimming-spot-keys (get-swimming-spot-keys)]
-      (do
-        (reset! warmest-swimming-spot nil)
-        (reset! ongoing-request-count 0)
-        (fetch-swimming-spots-details! swimming-spot-keys)
-        (is (= @ongoing-request-count 0))
-        (let [best-measurement (get-latest-measurement (:data @warmest-swimming-spot))]
-          (is (= 30.5 (:temp_water best-measurement))))))))
+(deftest best-swimming-spot-returns-correct-result
+  (with-redefs [http/get mock-get
+                println  (fn [s])]
+    (let [measurement-expiration-hours 3
+          swimming-spot-keys           (get-swimming-spot-keys)
+          swimming-spot-details        (fetch-swimming-spots-details swimming-spot-keys)
+          best-spot                    (get-best-swimming-spot swimming-spot-details measurement-expiration-hours)
+          best-spot-latest-measurement (get-latest-measurement (:data best-spot))]
+      (is (= 30.5 (:temp_water best-spot-latest-measurement))))))
